@@ -1,0 +1,9 @@
+requests
+beautifulsoup4
+pandas
+numpy
+sqlalchemy
+psycopg2-binary
+Flask
+PyPDF2
+python-docx
