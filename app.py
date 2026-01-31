@@ -8,7 +8,7 @@ import requests
 
 # Page configuration
 st.set_page_config(
-    page_title="AI Job Recommender",
+    page_title="Job Recommender System",
     page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -95,7 +95,7 @@ with st.sidebar:
         st.error("DB Disconnected")
 
 # Main Content
-st.markdown('<h1 class="main-header">🎯 Job Finder</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-header">🎯 Job Recommender System</h1>', unsafe_allow_html=True)
 
 # Unified Search Form
 with st.container():
@@ -156,10 +156,10 @@ if 'last_results' in st.session_state:
             score = job.get('final_score', 0) * 100
             
             # Determine color/label based on score
-            if score > 80:
+            if score >= 75:
                 score_label = "Excellent Match"
                 delta_color = "normal" 
-            elif score > 60:
+            elif score >= 60:
                 score_label = "Good Match"
                 delta_color = "off"
             else:

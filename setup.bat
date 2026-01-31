@@ -8,11 +8,11 @@ timeout /t 10 /nobreak
 
 echo Pulling models from your Docker Hub...
 docker exec ollama ollama pull nomic-embed-text:v1.5
-docker exec ollama ollama pull qwen3:0.6b
+docker exec ollama ollama pull llama3.2:3b
 
 echo Running ollama models in docker Hub...
 docker exec ollama ollama run nomic-embed-text:v1.5
-docker exec ollama ollama run qwen3:0.6b
+docker exec ollama ollama run llama3.2:3b
 
 echo Models ready!
 echo Ollama API: http://localhost:11434
