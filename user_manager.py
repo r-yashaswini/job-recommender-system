@@ -227,15 +227,24 @@ class UserManager:
             score = job.get('final_score', 0) * 100 if hasattr(job, 'get') else 0
             matched_skills = job.get('matched_skills', []) if hasattr(job, 'get') else []
             
+            title = job['title'] if hasattr(job, '__getitem__') else job.title
+            location = job['location'] if hasattr(job, '__getitem__') else job.location
+            experience = job['experience'] if hasattr(job, '__getitem__') else job.experience
+            description = job['description'] if hasattr(job, '__getitem__') else job.description
+            apply_url = job.get('apply_url') if hasattr(job, 'get') else getattr(job, 'apply_url', None)
+            
+            matched_skills_html = f"<p><strong>Matched Skills:</strong> {', '.join(matched_skills)}</p>" if matched_skills else ""
+            apply_button = f'<a href="{apply_url}" style="background: #2563eb; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px;">Apply Now</a>' if apply_url else ""
+            
             jobs_html += f"""
             <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px;">
-                <h3 style="color: #2563eb;">{job['title'] if hasattr(job, '__getitem__') else job.title}</h3>
-                <p><strong>Location:</strong> {job['location'] if hasattr(job, '__getitem__') else job.location}</p>
-                <p><strong>Experience:</strong> {job['experience'] if hasattr(job, '__getitem__') else job.experience}</p>
+                <h3 style="color: #2563eb;">{title}</h3>
+                <p><strong>Location:</strong> {location}</p>
+                <p><strong>Experience:</strong> {experience}</p>
                 <p><strong>Match Score:</strong> {score:.0f}%</p>
-                {f'<p><strong>Matched Skills:</strong> {', '.join(matched_skills)}</p>' if matched_skills else ''}
-                <p><strong>Description:</strong> {(job['description'] if hasattr(job, '__getitem__') else job.description)[:200]}...</p>
-                {f'<a href="{job['apply_url'] if hasattr(job, '__getitem__') else job.apply_url}" style="background: #2563eb; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px;">Apply Now</a>' if (job.get('apply_url') if hasattr(job, 'get') else getattr(job, 'apply_url', None)) else ''}
+                {matched_skills_html}
+                <p><strong>Description:</strong> {description[:200]}...</p>
+                {apply_button}
             </div>
             """
 

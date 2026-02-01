@@ -59,8 +59,15 @@ def extract_text_from_docx(docx_file):
 if 'rag' not in st.session_state:
     st.session_state.rag = JobRAG()
     st.session_state.user_manager = UserManager()
-    st.session_state.user_manager.start_notification_scheduler()
-    start_job_pipeline_scheduler()  # Start job scraping scheduler
+    
+    # Check if this is first run (trial mode)
+    if 'trial_completed' not in st.session_state:
+        st.session_state.trial_completed = False
+    
+    # Start schedulers only after trial
+    if st.session_state.trial_completed:
+        st.session_state.user_manager.start_notification_scheduler()
+        start_job_pipeline_scheduler()
 
 if 'search_history' not in st.session_state:
     st.session_state.search_history = []
@@ -82,7 +89,7 @@ if not st.session_state.user:
         
         if auth:
             auth_url = auth.get_auth_url()
-            st.markdown(f'<a href="{auth_url}" target="_self" style="display: inline-block; padding: 12px 24px; background: #4285f4; color: white; text-decoration: none; border-radius: 6px; font-weight: 500;">🔐 Sign in with Google</a>', unsafe_allow_html=True)
+            st.markdown(f'<div style="text-align: center;"><a href="{auth_url}" target="_self" style="display: inline-block; padding: 12px 24px; background: #4285f4; color: white; text-decoration: none; border-radius: 6px; font-weight: 500;">🔐 Sign in with Google</a></div>', unsafe_allow_html=True)
         else:
             st.error("Google authentication not configured")
         
@@ -197,6 +204,18 @@ with tab1:
         skills_input = st.text_area("Skills (Comma Separated)", value=default_skills, placeholder="python, sql, aws...")
 
         if st.button("🚀 Find Matching Jobs", type="primary"):
+            # Run trial pipeline on first search
+            if not st.session_state.trial_completed:
+                with st.spinner("Running initial job scraping for trial..."):
+                    from job_pipeline import main as run_pipeline
+                    run_pipeline()
+                
+                # Mark trial as completed and start schedulers
+                st.session_state.trial_completed = True
+                st.session_state.user_manager.start_notification_scheduler()
+                start_job_pipeline_scheduler()
+                st.success("Trial completed! Schedulers now active for daily operations.")
+            
             # Save user preferences for notifications
             preferences = {
                 'role_name': role_val,
@@ -206,6 +225,13 @@ with tab1:
                 'email_notifications': True
             }
             st.session_state.user_manager.save_user_preferences(st.session_state.user['id'], preferences)
+            
+            # Send trial notification after preferences are saved
+            if not st.session_state.get('trial_notification_sent', False):
+                with st.spinner("Sending trial notification..."):
+                    st.session_state.user_manager.check_new_jobs_and_notify()
+                    st.session_state.trial_notification_sent = True
+                    st.info("Trial notification sent! Check your email for job matches.")
             
             # Process inputs
             final_skills = {s.strip() for s in skills_input.split(',')} if skills_input else set()
