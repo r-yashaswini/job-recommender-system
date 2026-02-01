@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     listing_url TEXT,
     apply_url TEXT,
     posted_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     source VARCHAR(50),
     role VARCHAR(100),
     embedding vector(768)

@@ -69,9 +69,10 @@ def main():
         process_embeddings_and_roles()
         print("\n" + "=" * 60)
         print("PIPELINE COMPLETE!")
-        print("Data is ready for RAG system")
-        print("Run 'python job_rag.py' to test search")
-        print("Run 'python web_interface.py' for web interface")
+        print("Data is ready for job search")
+        print("Next steps:")
+        print("1. Run 'python job_pipeline.py --schedule' for daily automation")
+        print("2. Run 'streamlit run app.py' for web interface")
         print("=" * 60)
     else:
         print("\nNo jobs scraped. Pipeline stopped.")

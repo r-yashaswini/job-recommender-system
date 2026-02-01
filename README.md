@@ -92,23 +92,29 @@ pip install -r requirements.txt
 
 ## 🚀 Running the System
 
-### Option 1: Full System (Recommended)
+### Step 1: First Time Setup (Manual Run)
 ```bash
-streamlit run app.py
-```
-This starts:
-- Web interface at http://localhost:8501
-- Daily job scraping at 09:00
-- Daily notifications at 13:00
-
-### Option 2: Manual Job Pipeline
-```bash
-# One-time scraping
+# Run this ONCE to populate initial job data
 python job_pipeline.py
+```
 
-# Scheduled scraping
+### Step 2: Start Scheduled Pipeline (Background)
+```bash
+# Run this to start daily automated scraping at 09:00
 python job_pipeline.py --schedule
 ```
+**Keep this running in background for daily job updates**
+
+### Step 3: Start Web Interface (Separate Terminal)
+```bash
+# Run this in a separate terminal/process
+streamlit run app.py
+```
+
+**CRITICAL:** 
+- job_pipeline.py and app.py must run in separate processes
+- Never run scraping from within app.py - it will slow down job searches
+- First run job_pipeline.py manually, then with --schedule for automation
 
 ## 📊 System Architecture
 
@@ -128,12 +134,15 @@ python job_pipeline.py --schedule
 
 ## 🎯 Usage Flow
 
-1. **Sign In** with Google account
-2. **Set Preferences** (role, location)
-3. **Upload Resume** (optional, for skill extraction)
-4. **Search Jobs** with AI-powered matching
-5. **Save Jobs** you're interested in
-6. **Get Notifications** - top 5 daily matches via email at 1 PM
+1. **First Time:** Run `python job_pipeline.py` to get initial job data
+2. **Start Scheduler:** Run `python job_pipeline.py --schedule` (keep running)
+3. **Start Web App:** Run `streamlit run app.py` (separate terminal)
+4. **Sign In** with Google account
+5. **Set Preferences** (role, location)
+6. **Upload Resume** (optional, for skill extraction)
+7. **Search Jobs** with AI-powered matching
+8. **Save Jobs** you're interested in
+9. **Get Notifications** - top 5 daily matches via email at 1 PM
 
 ## 📧 Automated Features
 

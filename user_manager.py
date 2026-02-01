@@ -30,6 +30,14 @@ class UserManager:
         self.notification_thread = threading.Thread(target=self._notification_loop, daemon=True)
         self.notification_thread.start()
         print(f"[{datetime.now()}] Notification scheduler started - will run daily at 13:00")
+
+    def stop_notification_scheduler(self):
+        """Stop the notification scheduler"""
+        if not self.notification_running:
+            return
+            
+        self.notification_running = False
+        print(f"[{datetime.now()}] Notification scheduler stopped")
     
     def _notification_loop(self):
         """Run the notification scheduler loop"""
@@ -38,14 +46,15 @@ class UserManager:
             time.sleep(60)
 
     def create_user(self, google_id, username, email):
-        """Create a new user from Google OAuth data"""
+        """Create a new user from Google OAuth data and update logged_at on each login"""
         with self.engine.connect() as conn:
             stmt = text("""
-                INSERT INTO users (google_id, username, email)
-                VALUES (:google_id, :username, :email)
+                INSERT INTO users (google_id, username, email, logged_at)
+                VALUES (:google_id, :username, :email, NOW())
                 ON CONFLICT (google_id) DO UPDATE SET
                     username = EXCLUDED.username,
-                    email = EXCLUDED.email
+                    email = EXCLUDED.email,
+                    logged_at = NOW()
                 RETURNING id
             """)
             result = conn.execute(stmt, {
@@ -104,22 +113,29 @@ class UserManager:
             })
             conn.commit()
 
-    def save_job(self, user_id, job_id):
-        """Save a job for user"""
+    def save_job(self, user_id, job_id, final_score=0.0, matched_skills=None):
+        """Save a job for user with its match score and skills"""
         with self.engine.connect() as conn:
             stmt = text("""
-                INSERT INTO saved_jobs (user_id, job_id)
-                VALUES (:user_id, :job_id)
-                ON CONFLICT (user_id, job_id) DO NOTHING
+                INSERT INTO saved_jobs (user_id, job_id, final_score, matched_skills)
+                VALUES (:user_id, :job_id, :final_score, :matched_skills)
+                ON CONFLICT (user_id, job_id) DO UPDATE SET
+                    final_score = EXCLUDED.final_score,
+                    matched_skills = EXCLUDED.matched_skills
             """)
-            conn.execute(stmt, {'user_id': user_id, 'job_id': job_id})
+            conn.execute(stmt, {
+                'user_id': user_id, 
+                'job_id': job_id,
+                'final_score': final_score,
+                'matched_skills': matched_skills or []
+            })
             conn.commit()
 
     def get_saved_jobs(self, user_id):
-        """Get user's saved jobs"""
+        """Get user's saved jobs including match details"""
         with self.engine.connect() as conn:
             stmt = text("""
-                SELECT j.* FROM jobs j
+                SELECT j.*, sj.final_score, sj.matched_skills FROM jobs j
                 JOIN saved_jobs sj ON j.id = sj.job_id
                 WHERE sj.user_id = :user_id
                 ORDER BY sj.saved_at DESC
@@ -202,7 +218,16 @@ class UserManager:
                             new_jobs.append(job)
                     
                     if new_jobs:
-                        self._send_job_notification_email(user, new_jobs)
+                        # Convert user row to dict for updated email function
+                        user_dict = {
+                            'id': user.id,
+                            'email': user.email,
+                            'username': user.username,
+                            'location': user.location,
+                            'role_name': user.role_name,
+                            'skills': user.skills
+                        }
+                        self._send_job_notification_email(user_dict, new_jobs)
                         
                         # Mark jobs as notified
                         for job in new_jobs:
@@ -218,9 +243,10 @@ class UserManager:
             
             conn.commit()
 
-    def _send_job_notification_email(self, user, jobs):
+    def _send_job_notification_email(self, user, jobs, subject=None):
         """Send job notification email to user"""
-        subject = f"🎯 Top {len(jobs)} Job Matches Found!"
+        if subject is None:
+            subject = f"🎯 Top {len(jobs)} Job Matches Found!"
         
         jobs_html = ""
         for job in jobs:
@@ -251,14 +277,14 @@ class UserManager:
         body = f"""
         <html>
         <body>
-            <h2>Hi {user.username}! 👋</h2>
+            <h2>Hi {user.get('username', 'User')}! 👋</h2>
             <p>We found {len(jobs)} top job opportunities that match your preferences:</p>
             
             <div style="background: #f8fafc; padding: 15px; border-radius: 5px; margin: 15px 0;">
                 <strong>Your Preferences:</strong><br>
-                Role: {user.role_name or 'Any'}<br>
-                Location: {user.location or 'Any'}<br>
-                Skills: {', '.join(user.skills) if user.skills else 'None specified'}
+                Role: {user.get('role_name') or 'Any'}<br>
+                Location: {user.get('location') or 'Any'}<br>
+                Skills: {', '.join(user.get('skills', [])) if user.get('skills') else 'None specified'}
             </div>
             
             <h3>Top Job Matches:</h3>
@@ -277,4 +303,4 @@ class UserManager:
         </body>
         </html>
         """
-        return self.send_email_notification(user.email, subject, body)
+        return self.send_email_notification(user.get('email'), subject, body)

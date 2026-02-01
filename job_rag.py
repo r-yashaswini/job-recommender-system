@@ -22,16 +22,19 @@ class JobRAG:
             "c#": r"\b(c#|c sharp)\b",
         }
         self.tech_skills = {
-            'python', 'java', 'javascript', 'typescript', 'c++', 'c#', 'go', 'rust', 'php', 'ruby',
-            'react', 'angular', 'vue', 'node', 'django', 'flask', 'fastapi', 'spring', 'asp.net',
-            'sql', 'mysql', 'postgresql', 'mongodb', 'redis', 'elasticsearch', 'cassandra',
-            'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'jenkins', 'terraform', 'ansible',
-            'machine learning', 'deep learning', 'nlp', 'computer vision', 'pytorch', 'tensorflow',
-            'keras', 'scikit-learn', 'pandas', 'numpy', 'matplotlib', 'seaborn', 'opencv',
-            'git', 'github', 'gitlab', 'jira', 'confluence', 'agile', 'scrum',
-            'html', 'css', 'sass', 'less', 'bootstrap', 'tailwind',
+            'python', 'java', 'javascript', 'typescript', 'c++', 'c#', 'go', 'rust', 'php', 'ruby', 'scala', 'kotlin', 'swift', 'dart', 'r', 'julia',
+            'react', 'angular', 'vue', 'svelte', 'next.js', 'nuxt.js', 'node', 'express', 'nestjs', 'django', 'flask', 'fastapi', 'spring', 'asp.net', 'laravel', 'rails',
+            'sql', 'mysql', 'postgresql', 'mongodb', 'redis', 'elasticsearch', 'cassandra', 'dynamodb', 'mariadb', 'sqlite', 'neo4j', 'couchbase',
+            'aws', 'azure', 'gcp', 'digitalocean', 'firebase', 'devops', 'docker', 'kubernetes', 'jenkins', 'terraform', 'ansible', 'helm', 'istio', 'github actions', 'circleci',
+            'machine learning', 'deep learning', 'nlp', 'computer vision', 'pytorch', 'tensorflow', 'keras', 'scikit-learn', 'pandas', 'numpy', 'matplotlib', 'seaborn', 'opencv', 'huggingface', 'llm', 'langchain', 'vector database',
+            'git', 'github', 'gitlab', 'bitbucket', 'jira', 'confluence', 'agile', 'scrum', 'kanban',
+            'html', 'css', 'sass', 'less', 'bootstrap', 'tailwind', 'material-ui', 'figma', 'adobe xd',
             'linux', 'unix', 'bash', 'shell', 'powershell',
-            'data analysis', 'data engineering', 'data visualization', 'big data', 'hadoop', 'spark'
+            'data analysis', 'data engineering', 'data visualization', 'tableau', 'power bi', 'looker', 'metabase',
+            'big data', 'hadoop', 'hive', 'hbase', 'pig', 'spark', 'pyspark', 'airflow', 'sqoop', 'kafka', 'flink', 'snowflake', 'databricks', 'presto', 'trino', 'redshift', 'bigquery', 'dbt', 'clickhouse', 'druid', 'iceberg', 'delta lake',
+            'selenium', 'cypress', 'playwright', 'jest', 'mocha', 'junit', 'pytest',
+            'rest api', 'graphql', 'grpc', 'microservices', 'serverless', 'web3', 'solidity', 'ethereum', 'smart contracts',
+            'cybersecurity', 'penetration testing', 'iam', 'oauth', 'jwt', 'flutter', 'react native', 'ionic'
         }
 
     def get_embedding(self, text):
@@ -70,7 +73,11 @@ class JobRAG:
         common_skills = user_skills.intersection(job_skills)
         if not common_skills:
             return 0.0, set()
-        score = len(common_skills) / len(user_skills)
+        # More realistic skill scoring - consider both coverage and missing skills
+        match_ratio = len(common_skills) / len(job_skills)  # How many job requirements user meets
+        coverage_ratio = len(common_skills) / len(user_skills)  # How relevant user's skills are
+        # Weighted average favoring job requirements coverage
+        score = (match_ratio * 0.8) + (coverage_ratio * 0.2)
         return min(score, 1.0), common_skills
 
     def search_jobs(self, query, filters=None, limit=20):
@@ -120,13 +127,10 @@ class JobRAG:
         if jobs_df.empty:
             return pd.DataFrame()
 
-        # Priority scoring: Role > Title > Vector similarity
-        role_score = 0.0
-        title_score = 0.0
-        
+        # Priority scoring: Role > Title > Vector similarity (original logic)
         if filters.get('role_type'):
             role_term = filters['role_type'].lower()
-            jobs_df['title_match'] = jobs_df['title'].fillna('').str.lower().str.contains(role_term, na=False).astype(float) * 0.8
+            jobs_df['title_match'] = jobs_df['title'].fillna('').str.lower().str.contains(role_term, na=False).astype(float) * 0.6
             jobs_df['role_match'] = jobs_df['role'].fillna('').str.lower().str.contains(role_term, na=False).astype(float) * 0.5
             jobs_df['final_score'] = jobs_df['title_match'] + jobs_df['role_match'] + (jobs_df['vector_score'] * 0.3)
         else:
@@ -150,12 +154,17 @@ class JobRAG:
             
             jobs_df['skill_score'] = skill_scores
             jobs_df['matched_skills'] = matched_skills_list
-            jobs_df['final_score'] += jobs_df['skill_score'] * 0.3
+            jobs_df['final_score'] += jobs_df['skill_score'] * 0.4
+            
+            # Penalize jobs with no skill matches when user has skills
+            no_skill_penalty = (jobs_df['skill_score'] == 0).astype(float) * 0.3
+            jobs_df['final_score'] -= no_skill_penalty
         else:
             jobs_df['skill_score'] = 0.0
             jobs_df['matched_skills'] = [[] for _ in range(len(jobs_df))]
 
-        jobs_df['final_score'] = jobs_df['final_score'].clip(upper=1.0)
+        # Cap final score at 0.90 (90%) to be more realistic
+        jobs_df['final_score'] = jobs_df['final_score'].clip(upper=0.90)
         jobs_df = jobs_df.sort_values('final_score', ascending=False).head(limit)
         
         return jobs_df
@@ -210,10 +219,10 @@ Keep response under 150 words."""
                     "options": {
                         "num_predict": 150,
                         "temperature": 0.3,
-                        "num_threads": 4
+                        "num_threads": 6
                     }
                 },
-                timeout=120
+                timeout=200
             )
             response.raise_for_status()
             return response.json().get("response", "Analysis unavailable.")
@@ -229,6 +238,27 @@ Keep response under 150 words."""
                 response += f"Strong skills match: {', '.join(top_matched[:3])}. "
             response += "Consider developing related technologies for better matches."
             return response
+
+    def chat(self, query, filters=None):
+        """Main chat interface"""
+        try:
+            filters = filters or {}
+            jobs = self.search_jobs(query, filters)
+            
+            if jobs.empty:
+                return {"response": "No relevant jobs found matching your criteria.", "jobs": []}
+            
+            user_skills = filters.get('resume_skills', set())
+            if not user_skills:
+                user_skills = self.extract_skills(query)
+            
+            response = self.generate_response(query, jobs, user_skills)
+            return {
+                "response": response,
+                "jobs": jobs.to_dict('records')
+            }
+        except Exception as e:
+            return {"response": f"Error: {str(e)}", "jobs": []}
 
     def chat(self, query, filters=None):
         """Main chat interface"""

@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     role_name VARCHAR(100),
     skills TEXT[],
     resume_blob BYTEA,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    logged_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Simple saved jobs
@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS saved_jobs (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     job_id UUID REFERENCES jobs(id) ON DELETE CASCADE,
     saved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    final_score FLOAT DEFAULT 0.0,
+    matched_skills TEXT[],
     PRIMARY KEY(user_id, job_id)
 );
 
